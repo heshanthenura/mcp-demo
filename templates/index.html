@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shop Stock</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen py-10">
+  <div class="max-w-2xl mx-auto bg-white rounded-xl shadow p-6">
+    <h1 class="text-2xl font-bold text-slate-800 mb-1">Shop Stock</h1>
+    <p class="text-sm text-slate-500 mb-6">Simple CRUD over a shop's stock.</p>
+
+    <form id="add-form" class="grid grid-cols-4 gap-2 mb-6">
+      <input name="name" placeholder="Name" required
+             class="col-span-2 border rounded px-3 py-2 text-sm">
+      <input name="quantity" type="number" placeholder="Qty" required
+             class="border rounded px-3 py-2 text-sm">
+      <input name="price" type="number" step="0.01" placeholder="Price" required
+             class="border rounded px-3 py-2 text-sm">
+      <button class="col-span-4 bg-indigo-600 text-white rounded py-2 text-sm font-medium hover:bg-indigo-700">
+        Add item
+      </button>
+    </form>
+
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-slate-500 border-b">
+          <th class="py-2">Name</th>
+          <th class="py-2">Qty</th>
+          <th class="py-2">Price</th>
+          <th class="py-2"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+<script>
+const rowsEl = document.getElementById('rows');
+const addForm = document.getElementById('add-form');
+
+async function load() {
+  const items = await (await fetch('/api/items')).json();
+  rowsEl.innerHTML = items.map(it => `
+    <tr class="border-b last:border-0" data-id="${it.id}">
+      <td class="py-2"><input class="w-full bg-transparent" value="${it.name}" data-field="name"></td>
+      <td class="py-2"><input class="w-16 bg-transparent" type="number" value="${it.quantity}" data-field="quantity"></td>
+      <td class="py-2"><input class="w-20 bg-transparent" type="number" step="0.01" value="${it.price}" data-field="price"></td>
+      <td class="py-2 text-right">
+        <button class="save text-indigo-600 hover:underline mr-3">Save</button>
+        <button class="del text-red-600 hover:underline">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+addForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(addForm);
+  await fetch('/api/items', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name: fd.get('name'),
+      quantity: Number(fd.get('quantity')),
+      price: Number(fd.get('price')),
+    }),
+  });
+  addForm.reset();
+  load();
+});
+
+rowsEl.addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr');
+  const id = tr.dataset.id;
+
+  if (e.target.classList.contains('del')) {
+    await fetch(`/api/items/${id}`, { method: 'DELETE' });
+    load();
+  }
+
+  if (e.target.classList.contains('save')) {
+    const payload = {};
+    tr.querySelectorAll('[data-field]').forEach(input => {
+      payload[input.dataset.field] = input.type === 'number' ? Number(input.value) : input.value;
+    });
+    await fetch(`/api/items/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    load();
+  }
+});
+
+load();
+</script>
+</body>
+</html>
